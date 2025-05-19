@@ -84,11 +84,10 @@
       appId: "1:850733637403:web:0b8b4ffea9878765643dbe",
       measurementId: "G-XQYWKVJZXF"
     };
-    
+
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
-
     const usersRef = db.ref('users');
 
     function updateStats() {
@@ -106,9 +105,17 @@
     }
 
     function signup() {
-      const username = document.getElementById('username').value;
+      const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
-      auth.createUserWithEmailAndPassword(`${username}@twiky.com`, password)
+
+      if (!username || !password) {
+        alert("Veuillez entrer un pseudo et un mot de passe.");
+        return;
+      }
+
+      const email = `${username}@twiky.com`;
+
+      auth.createUserWithEmailAndPassword(email, password)
         .then(cred => {
           return usersRef.child(cred.user.uid).set({ username, online: true, posts: 0 });
         })
@@ -116,13 +123,24 @@
           localStorage.setItem('uid', auth.currentUser.uid);
           window.location.href = 'home.html';
         })
-        .catch(console.error);
+        .catch(error => {
+          alert("Erreur lors de la création du compte : " + error.message);
+          console.error(error);
+        });
     }
 
     function login() {
-      const username = document.getElementById('username').value;
+      const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
-      auth.signInWithEmailAndPassword(`${username}@twiky.com`, password)
+
+      if (!username || !password) {
+        alert("Veuillez entrer un pseudo et un mot de passe.");
+        return;
+      }
+
+      const email = `${username}@twiky.com`;
+
+      auth.signInWithEmailAndPassword(email, password)
         .then(cred => {
           return usersRef.child(cred.user.uid).update({ online: true });
         })
@@ -130,7 +148,10 @@
           localStorage.setItem('uid', auth.currentUser.uid);
           window.location.href = 'home.html';
         })
-        .catch(console.error);
+        .catch(error => {
+          alert("Erreur lors de la connexion : " + error.message);
+          console.error(error);
+        });
     }
 
     window.addEventListener('load', updateStats);
