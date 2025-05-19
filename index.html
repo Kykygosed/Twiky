@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twiky - Connexion</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f5f5f5;
+    }
+    .topbar {
+      width: 100%;
+      background-color: #1da1f2;
+      color: white;
+      text-align: center;
+      font-size: 2em;
+      padding: 1em;
+      font-weight: bold;
+    }
+    .stats {
+      font-size: 0.8em;
+      margin-top: -0.5em;
+    }
+    .form-container {
+      margin-top: 3em;
+      padding: 2em;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background-color: #1da1f2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0d8ddb;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">Twiky</div>
+  <div class="stats">
+    <span id="totalUsers">0 utilisateurs</span> | 
+    <span id="onlineUsers">0 en ligne</span>
+  </div>
+  <div class="form-container">
+    <input type="text" id="username" placeholder="Pseudo">
+    <input type="password" id="password" placeholder="Mot de passe">
+    <button onclick="signup()">Créer un compte</button>
+    <button onclick="login()">Connexion</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCItTa7T4vROhWFHfrbNnVD8RoCBuZKaXM",
+      authDomain: "twiky-2e73a.firebaseapp.com",
+      databaseURL: "https://twiky-2e73a-default-rtdb.firebaseio.com",
+      projectId: "twiky-2e73a",
+      storageBucket: "twiky-2e73a.firebasestorage.app",
+      messagingSenderId: "850733637403",
+      appId: "1:850733637403:web:0b8b4ffea9878765643dbe",
+      measurementId: "G-XQYWKVJZXF"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    const usersRef = db.ref('users');
+
+    function updateStats() {
+      usersRef.once('value', snapshot => {
+        const users = snapshot.val() || {};
+        let total = 0;
+        let online = 0;
+        for (const uid in users) {
+          total++;
+          if (users[uid].online) online++;
+        }
+        document.getElementById('totalUsers').textContent = `${total} utilisateurs`;
+        document.getElementById('onlineUsers').textContent = `${online} en ligne`;
+      });
+    }
+
+    function signup() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      auth.createUserWithEmailAndPassword(`${username}@twiky.com`, password)
+        .then(cred => {
+          return usersRef.child(cred.user.uid).set({ username, online: true, posts: 0 });
+        })
+        .then(() => {
+          localStorage.setItem('uid', auth.currentUser.uid);
+          window.location.href = 'home.html';
+        })
+        .catch(console.error);
+    }
+
+    function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      auth.signInWithEmailAndPassword(`${username}@twiky.com`, password)
+        .then(cred => {
+          return usersRef.child(cred.user.uid).update({ online: true });
+        })
+        .then(() => {
+          localStorage.setItem('uid', auth.currentUser.uid);
+          window.location.href = 'home.html';
+        })
+        .catch(console.error);
+    }
+
+    window.addEventListener('load', updateStats);
+  </script>
+</body>
+</html>
