@@ -129,17 +129,26 @@
       document.getElementById("startGameBtn").style.display = "block";
       document.getElementById("startGameBtn").onclick = () => {
         gameRef.update({ started: true });
-        // Rediriger vers game.html
         window.location.href = `game.html?game=${gameId}`;
       };
     }
+
+    // Surveille le démarrage du jeu pour tout le monde
+    gameRef.child("started").on("value", (snapshot) => {
+      if (snapshot.val()) {
+        window.location.href = `game.html?game=${gameId}`;
+      }
+    });
 
     playersRef.on("value", (snap) => {
       const list = document.getElementById("playersList");
       list.innerHTML = "";
       snap.forEach((child) => {
         const li = document.createElement("li");
-        li.textContent = child.val().pseudo;
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = child.val().pseudo;
+        li.appendChild(nameSpan);
+
         if (isHost && child.key !== playerKey) {
           const kickBtn = document.createElement("button");
           kickBtn.className = "kick";
@@ -147,11 +156,11 @@
           kickBtn.onclick = () => playersRef.child(child.key).remove();
           li.appendChild(kickBtn);
         }
+
         list.appendChild(li);
       });
     });
 
-    // Suppression du joueur à la déconnexion
     window.addEventListener("beforeunload", () => {
       playerRef.remove();
     });
