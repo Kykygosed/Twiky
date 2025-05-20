@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lobby - ImproPhone</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to bottom right, #00b09b, #96c93d);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-top: 20px;
+      font-size: 2rem;
+    }
+
+    #gameCode {
+      margin: 10px 0;
+      font-size: 1.2rem;
+      font-weight: bold;
+      background-color: rgba(255,255,255,0.1);
+      padding: 8px 16px;
+      border-radius: 8px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    li {
+      background-color: rgba(255,255,255,0.15);
+      margin-bottom: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    button.kick {
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button.kick:hover {
+      background-color: #e60000;
+    }
+
+    #startGameBtn {
+      margin-top: 30px;
+      padding: 10px 20px;
+      font-size: 1.1rem;
+      border-radius: 10px;
+      border: none;
+      background-color: white;
+      color: #00b09b;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎭 Lobby</h1>
+  <div id="gameCode">Code de partie : ...</div>
+  <ul id="playersList"></ul>
+  <button id="startGameBtn" style="display:none;">Commencer la partie</button>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCItTa7T4vROhWFHfrbNnVD8RoCBuZKaXM",
+      authDomain: "twiky-2e73a.firebaseapp.com",
+      databaseURL: "https://twiky-2e73a-default-rtdb.firebaseio.com",
+      projectId: "twiky-2e73a",
+      storageBucket: "twiky-2e73a.firebasestorage.app",
+      messagingSenderId: "850733637403",
+      appId: "1:850733637403:web:0b8b4ffea9878765643dbe",
+      measurementId: "G-XQYWKVJZXF"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const pseudo = localStorage.getItem("pseudo") || "Anonyme";
+    const params = new URLSearchParams(window.location.search);
+    const createType = params.get("create");
+    const joinCode = params.get("code");
+
+    let gameId = joinCode || ("game-" + Math.random().toString(36).substr(2, 6));
+    let isHost = false;
+
+    const gameRef = db.ref("games/" + gameId);
+    const playersRef = gameRef.child("players");
+
+    document.getElementById("gameCode").innerText = `Code de partie : ${gameId}`;
+
+    if (createType) {
+      isHost = true;
+      gameRef.set({
+        createdAt: Date.now(),
+        type: createType,
+        started: false
+      });
+    }
+
+    const playerRef = playersRef.push({ pseudo });
+    const playerKey = playerRef.key;
+
+    if (isHost) {
+      document.getElementById("startGameBtn").style.display = "block";
+      document.getElementById("startGameBtn").onclick = () => {
+        gameRef.update({ started: true });
+        // Rediriger vers game.html
+        window.location.href = `game.html?game=${gameId}`;
+      };
+    }
+
+    playersRef.on("value", (snap) => {
+      const list = document.getElementById("playersList");
+      list.innerHTML = "";
+      snap.forEach((child) => {
+        const li = document.createElement("li");
+        li.textContent = child.val().pseudo;
+        if (isHost && child.key !== playerKey) {
+          const kickBtn = document.createElement("button");
+          kickBtn.className = "kick";
+          kickBtn.textContent = "Expulser";
+          kickBtn.onclick = () => playersRef.child(child.key).remove();
+          li.appendChild(kickBtn);
+        }
+        list.appendChild(li);
+      });
+    });
+
+    // Suppression du joueur à la déconnexion
+    window.addEventListener("beforeunload", () => {
+      playerRef.remove();
+    });
+  </script>
+</body>
+</html>
