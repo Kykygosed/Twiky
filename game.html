@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ImproPhone - Partie</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f2f2f2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    #sceneZone {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      border-top: 2px solid #ccc;
+      border-bottom: 2px solid #ccc;
+      background-color: #fff;
+      margin: 20px 0;
+      position: relative;
+    }
+
+    #controls, #chatBox, #phraseInputBox, #drawingControls {
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 20px;
+    }
+
+    input[type=text] {
+      width: 80%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: 10px 15px;
+      font-size: 1rem;
+      background-color: #00b09b;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #stickmanCanvas {
+      background: #eaeaea;
+      border: 1px solid #aaa;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="phaseTitle">Phase 1 : Écris une phrase</h1>
+
+  <div id="sceneZone">
+    <canvas id="stickmanCanvas" width="400" height="400"></canvas>
+  </div>
+
+  <div id="phraseInputBox">
+    <input type="text" id="phraseInput" placeholder="Écris une phrase" />
+    <button id="submitPhrase">Envoyer</button>
+  </div>
+
+  <div id="chatBox" style="display:none">
+    <input type="text" id="guessInput" placeholder="Devine la phrase..." />
+    <button id="submitGuess">Envoyer</button>
+  </div>
+
+  <div id="controls" style="display:none">
+    <p>Contrôle le stickman :</p>
+    <button onclick="move('left')">Gauche</button>
+    <button onclick="move('right')">Droite</button>
+    <button onclick="move('up')">Haut</button>
+    <button onclick="move('down')">Bas</button>
+  </div>
+
+  <div id="drawingControls" style="display:none">
+    <button onclick="toggleDrawingMode()">🎨 Mode dessin</button>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCItTa7T4vROhWFHfrbNnVD8RoCBuZKaXM",
+      authDomain: "twiky-2e73a.firebaseapp.com",
+      databaseURL: "https://twiky-2e73a-default-rtdb.firebaseio.com",
+      projectId: "twiky-2e73a",
+      storageBucket: "twiky-2e73a.firebasestorage.app",
+      messagingSenderId: "850733637403",
+      appId: "1:850733637403:web:0b8b4ffea9878765643dbe",
+      measurementId: "G-XQYWKVJZXF"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const pseudo = localStorage.getItem("pseudo") || "Anonyme";
+    const params = new URLSearchParams(window.location.search);
+    const gameId = params.get("game");
+    const gameRef = db.ref("games/" + gameId);
+
+    const phrasesRef = gameRef.child("phrases");
+    const playersRef = gameRef.child("players");
+    const usedPhrasesRef = gameRef.child("usedPhrases");
+    const chatRef = gameRef.child("chat");
+
+    document.getElementById("submitPhrase").onclick = () => {
+      const phrase = document.getElementById("phraseInput").value.trim();
+      if (phrase) {
+        phrasesRef.child(pseudo).set(phrase);
+        document.getElementById("phraseInputBox").style.display = "none";
+        document.getElementById("phaseTitle").innerText = "En attente des autres joueurs...";
+      }
+    };
+
+    phrasesRef.on("value", snapshot => {
+      const data = snapshot.val();
+      playersRef.once("value", snap => {
+        const allPlayers = Object.keys(snap.val() || {});
+        if (data && Object.keys(data).length === allPlayers.length) {
+          startPhase2();
+        }
+      });
+    });
+
+    let interpreter = null;
+    let currentPhrase = null;
+
+    function startPhase2() {
+      document.getElementById("controls").style.display = "block";
+      document.getElementById("chatBox").style.display = "block";
+      document.getElementById("drawingControls").style.display = "block";
+      document.getElementById("phaseTitle").innerText = "Phase 2 : Interprète la scène";
+
+      gameRef.child("interpreter").once("value", snap => {
+        if (!snap.exists()) {
+          playersRef.once("value", playersSnap => {
+            const allPlayers = Object.keys(playersSnap.val() || {});
+            interpreter = allPlayers[Math.floor(Math.random() * allPlayers.length)];
+            gameRef.child("interpreter").set(interpreter);
+          });
+        } else {
+          interpreter = snap.val();
+        }
+      });
+
+      phrasesRef.once("value", phraseSnap => {
+        usedPhrasesRef.once("value", usedSnap => {
+          const allPhrases = phraseSnap.val();
+          const used = usedSnap.val() || {};
+          const available = Object.entries(allPhrases).filter(([author, text]) => !used[text] && author !== interpreter);
+
+          if (available.length > 0) {
+            const [author, phrase] = available[Math.floor(Math.random() * available.length)];
+            currentPhrase = phrase;
+            usedPhrasesRef.child(phrase).set(true);
+            gameRef.child("currentPhrase").set(phrase);
+
+            // Redirection après 60 secondes (fin phase 2)
+            setTimeout(() => {
+              window.location.href = `results.html?game=${gameId}`;
+            }, 60000);
+          }
+        });
+      });
+    }
+
+    document.getElementById("submitGuess").onclick = () => {
+      const input = document.getElementById("guessInput");
+      const guess = input.value.trim();
+      if (guess) {
+        chatRef.push({ pseudo, guess });
+        input.disabled = true;
+        document.getElementById("submitGuess").disabled = true;
+      }
+    };
+
+    chatRef.on("child_added", (snap) => {
+      console.log("Suggestion reçue :", snap.val());
+    });
+
+    const canvas = document.getElementById("stickmanCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let stickman = { x: 200, y: 100 };
+    let drawingMode = false;
+    let drawings = [];
+    let currentDrawing = [];
+
+    function drawAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.beginPath();
+      ctx.arc(stickman.x, stickman.y, 20, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(stickman.x, stickman.y + 20);
+      ctx.lineTo(stickman.x, stickman.y + 100);
+      ctx.moveTo(stickman.x, stickman.y + 40);
+      ctx.lineTo(stickman.x - 30, stickman.y + 70);
+      ctx.moveTo(stickman.x, stickman.y + 40);
+      ctx.lineTo(stickman.x + 30, stickman.y + 70);
+      ctx.moveTo(stickman.x, stickman.y + 100);
+      ctx.lineTo(stickman.x - 30, stickman.y + 140);
+      ctx.moveTo(stickman.x, stickman.y + 100);
+      ctx.lineTo(stickman.x + 30, stickman.y + 140);
+      ctx.stroke();
+
+      drawings.forEach(d => {
+        ctx.beginPath();
+        d.forEach((pt, i) => {
+          if (i === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.stroke();
+      });
+    }
+
+    canvas.addEventListener("mousedown", e => {
+      if (!drawingMode) return;
+      currentDrawing = [{ x: e.offsetX, y: e.offsetY }];
+      canvas.addEventListener("mousemove", onDraw);
+    });
+
+    canvas.addEventListener("mouseup", () => {
+      if (!drawingMode) return;
+      drawings.push(currentDrawing);
+      currentDrawing = [];
+      canvas.removeEventListener("mousemove", onDraw);
+      saveDrawings();
+    });
+
+    function onDraw(e) {
+      currentDrawing.push({ x: e.offsetX, y: e.offsetY });
+      drawAll();
+    }
+
+    function toggleDrawingMode() {
+      drawingMode = !drawingMode;
+      document.getElementById("drawingControls").querySelector("button").innerText = drawingMode ? "✅ Quitter dessin" : "🎨 Mode dessin";
+    }
+
+    function saveDrawings() {
+      db.ref(`games/${gameId}/drawings`).set(drawings);
+    }
+
+    db.ref(`games/${gameId}/drawings`).on("value", snap => {
+      drawings = snap.val() || [];
+      drawAll();
+    });
+
+    function move(direction) {
+      const step = 10;
+      if (direction === 'left') stickman.x -= step;
+      if (direction === 'right') stickman.x += step;
+      if (direction === 'up') stickman.y -= step;
+      if (direction === 'down') stickman.y += step;
+      drawAll();
+      db.ref(`games/${gameId}/stickman`).set(stickman);
+    }
+
+    db.ref(`games/${gameId}/stickman`).on("value", snap => {
+      if (snap.exists()) {
+        stickman = snap.val();
+        drawAll();
+      }
+    });
+
+    drawAll();
+  </script>
+</body>
+</html>
