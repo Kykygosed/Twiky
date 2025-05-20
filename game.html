@@ -124,17 +124,21 @@
     document.getElementById("submitPhrase").onclick = () => {
       const phrase = document.getElementById("phraseInput").value.trim();
       if (phrase) {
-        phrasesRef.child(pseudo).set(phrase);
+        // On utilise push() pour ne pas écraser les phrases précédentes
+        phrasesRef.push({ pseudo, phrase });
         document.getElementById("phraseInputBox").style.display = "none";
         document.getElementById("phaseTitle").innerText = "En attente des autres joueurs...";
       }
     };
 
+    // Surveiller les phrases pour savoir quand tous les joueurs ont posté
     phrasesRef.on("value", snapshot => {
-      const data = snapshot.val();
+      const phrases = snapshot.val() || {};
+      const numPhrases = Object.keys(phrases).length;
+
       playersRef.once("value", snap => {
         const allPlayers = Object.keys(snap.val() || {});
-        if (data && Object.keys(data).length === allPlayers.length) {
+        if (numPhrases === allPlayers.length && allPlayers.length > 0) {
           startPhase2();
         }
       });
@@ -163,15 +167,18 @@
 
       phrasesRef.once("value", phraseSnap => {
         usedPhrasesRef.once("value", usedSnap => {
-          const allPhrases = phraseSnap.val();
+          const allPhrasesObj = phraseSnap.val() || {};
           const used = usedSnap.val() || {};
-          const available = Object.entries(allPhrases).filter(([author, text]) => !used[text] && author !== interpreter);
+          // Transforme phrases en tableau [{pseudo, phrase}]
+          const allPhrases = Object.values(allPhrasesObj);
+          // Filtrer les phrases non utilisées et pas de l'interprète
+          const available = allPhrases.filter(p => !used[p.phrase] && p.pseudo !== interpreter);
 
           if (available.length > 0) {
-            const [author, phrase] = available[Math.floor(Math.random() * available.length)];
-            currentPhrase = phrase;
-            usedPhrasesRef.child(phrase).set(true);
-            gameRef.child("currentPhrase").set(phrase);
+            const chosen = available[Math.floor(Math.random() * available.length)];
+            currentPhrase = chosen.phrase;
+            usedPhrasesRef.child(currentPhrase).set(true);
+            gameRef.child("currentPhrase").set(currentPhrase);
 
             // Redirection après 60 secondes (fin phase 2)
             setTimeout(() => {
