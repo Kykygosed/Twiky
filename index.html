@@ -1,160 +1,117 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Twiky - Connexion</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ImproPhone - Accueil</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Roboto', sans-serif;
       margin: 0;
-      padding: 0;
+      background: linear-gradient(to bottom right, #6a11cb, #2575fc);
+      color: white;
       display: flex;
       flex-direction: column;
       align-items: center;
-      background-color: #f5f5f5;
+      justify-content: center;
+      height: 100vh;
+      padding: 20px;
     }
-    .topbar {
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
       width: 100%;
-      background-color: #1da1f2;
-      color: white;
-      text-align: center;
-      font-size: 2em;
-      padding: 1em;
-      font-weight: bold;
+      max-width: 400px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
     }
-    .stats {
-      font-size: 0.8em;
-      margin-top: -0.5em;
+
+    input, button {
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
     }
-    .form-container {
-      margin-top: 3em;
-      padding: 2em;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 300px;
-    }
+
     input {
       width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 5px;
-      border: 1px solid #ccc;
     }
+
     button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      background-color: #1da1f2;
-      color: white;
-      border: none;
-      border-radius: 5px;
       cursor: pointer;
+      background-color: white;
+      color: #2575fc;
+      font-weight: bold;
+      transition: 0.2s;
     }
+
     button:hover {
-      background-color: #0d8ddb;
+      background-color: #f0f0f0;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
   </style>
 </head>
 <body>
-  <div class="topbar">Twiky</div>
-  <div class="stats">
-    <span id="totalUsers">0 utilisateurs</span> | 
-    <span id="onlineUsers">0 en ligne</span>
-  </div>
-  <div class="form-container">
-    <input type="text" id="username" placeholder="Pseudo">
-    <input type="password" id="password" placeholder="Mot de passe">
-    <button onclick="signup()">Créer un compte</button>
-    <button onclick="login()">Connexion</button>
+  <h1>🎭 ImproPhone</h1>
+  <div class="card">
+    <div class="section">
+      <label for="pseudo">Choisir un pseudo :</label>
+      <input type="text" id="pseudo" placeholder="Ex: Acteur123" />
+    </div>
+
+    <div class="section">
+      <button onclick="createGame('public')">Créer une partie publique</button>
+      <button onclick="createGame('private')">Créer une partie privée</button>
+    </div>
+
+    <div class="section">
+      <label for="code">Rejoindre une partie privée :</label>
+      <input type="text" id="code" placeholder="Code de la partie" />
+      <button onclick="joinPrivateGame()">Rejoindre</button>
+    </div>
+
+    <div class="section">
+      <button onclick="goToLobbyList()">Voir les parties publiques</button>
+    </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCItTa7T4vROhWFHfrbNnVD8RoCBuZKaXM",
-      authDomain: "twiky-2e73a.firebaseapp.com",
-      databaseURL: "https://twiky-2e73a-default-rtdb.firebaseio.com",
-      projectId: "twiky-2e73a",
-      storageBucket: "twiky-2e73a.firebasestorage.app",
-      messagingSenderId: "850733637403",
-      appId: "1:850733637403:web:0b8b4ffea9878765643dbe",
-      measurementId: "G-XQYWKVJZXF"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
-    const usersRef = db.ref('users');
-
-    function updateStats() {
-      usersRef.once('value', snapshot => {
-        const users = snapshot.val() || {};
-        let total = 0;
-        let online = 0;
-        for (const uid in users) {
-          total++;
-          if (users[uid].online) online++;
-        }
-        document.getElementById('totalUsers').textContent = `${total} utilisateurs`;
-        document.getElementById('onlineUsers').textContent = `${online} en ligne`;
-      });
+    function createGame(type) {
+      const pseudo = document.getElementById('pseudo').value.trim();
+      if (!pseudo) return alert("Veuillez entrer un pseudo.");
+      localStorage.setItem("pseudo", pseudo);
+      window.location.href = `lobby.html?create=${type}`;
     }
 
-    function signup() {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!username || !password) {
-        alert("Veuillez entrer un pseudo et un mot de passe.");
-        return;
-      }
-
-      const email = `${username}@twiky.com`;
-
-      auth.createUserWithEmailAndPassword(email, password)
-        .then(cred => {
-          return usersRef.child(cred.user.uid).set({ username, online: true, posts: 0 });
-        })
-        .then(() => {
-          localStorage.setItem('uid', auth.currentUser.uid);
-          window.location.href = 'home.html';
-        })
-        .catch(error => {
-          alert("Erreur lors de la création du compte : " + error.message);
-          console.error(error);
-        });
+    function joinPrivateGame() {
+      const pseudo = document.getElementById('pseudo').value.trim();
+      const code = document.getElementById('code').value.trim();
+      if (!pseudo || !code) return alert("Veuillez entrer un pseudo et un code de partie.");
+      localStorage.setItem("pseudo", pseudo);
+      window.location.href = `lobby.html?code=${code}`;
     }
 
-    function login() {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!username || !password) {
-        alert("Veuillez entrer un pseudo et un mot de passe.");
-        return;
-      }
-
-      const email = `${username}@twiky.com`;
-
-      auth.signInWithEmailAndPassword(email, password)
-        .then(cred => {
-          return usersRef.child(cred.user.uid).update({ online: true });
-        })
-        .then(() => {
-          localStorage.setItem('uid', auth.currentUser.uid);
-          window.location.href = 'home.html';
-        })
-        .catch(error => {
-          alert("Erreur lors de la connexion : " + error.message);
-          console.error(error);
-        });
+    function goToLobbyList() {
+      const pseudo = document.getElementById('pseudo').value.trim();
+      if (!pseudo) return alert("Veuillez entrer un pseudo.");
+      localStorage.setItem("pseudo", pseudo);
+      window.location.href = "lobby.html";
     }
-
-    window.addEventListener('load', updateStats);
   </script>
 </body>
 </html>
