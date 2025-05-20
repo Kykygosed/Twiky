@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Résultats - Interprétation Coop</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background-color: #f4f4f4;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .result-container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .scene {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 5px;
+      border-left: 4px solid #4CAF50;
+    }
+    .scene h3 {
+      margin: 0 0 10px;
+    }
+    .scene p {
+      margin: 5px 0;
+    }
+    .buttons {
+      text-align: center;
+      margin-top: 30px;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      background-color: #2196F3;
+      color: white;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #1976D2;
+    }
+  </style>
+</head>
+<body>
+  <h1>Résultats de la Partie</h1>
+  <div class="result-container" id="results"></div>
+  <div class="buttons">
+    <button onclick="window.location.href='index.html'">Retour à l'accueil</button>
+    <button onclick="quitParty()">Quitter la Partie</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getDatabase, ref, get, remove } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCItTa7T4vROhWFHfrbNnVD8RoCBuZKaXM",
+      authDomain: "twiky-2e73a.firebaseapp.com",
+      databaseURL: "https://twiky-2e73a-default-rtdb.firebaseio.com",
+      projectId: "twiky-2e73a",
+      storageBucket: "twiky-2e73a.appspot.com",
+      messagingSenderId: "850733637403",
+      appId: "1:850733637403:web:0b8b4ffea9878765643dbe",
+      measurementId: "G-XQYWKVJZXF"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const partyId = localStorage.getItem("partyId");
+    const playerName = localStorage.getItem("playerName");
+
+    if (partyId) {
+      const resultsRef = ref(db, `parties/${partyId}/results`);
+      get(resultsRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const container = document.getElementById("results");
+          Object.keys(data).forEach((sceneKey, index) => {
+            const scene = data[sceneKey];
+            const div = document.createElement("div");
+            div.className = "scene";
+            div.innerHTML = `
+              <h3>Scène ${index + 1}</h3>
+              <p><strong>Phrase d'origine :</strong> ${scene.original}</p>
+              <p><strong>Interprété par :</strong> ${scene.actor}</p>
+              <p><strong>Gagnant (meilleure devinette) :</strong> ${scene.winner}</p>
+            `;
+            container.appendChild(div);
+          });
+        } else {
+          document.getElementById("results").innerHTML = "<p>Aucun résultat trouvé.</p>";
+        }
+      });
+    } else {
+      document.getElementById("results").innerHTML = "<p>Identifiant de partie introuvable.</p>";
+    }
+
+    window.quitParty = function () {
+      if (partyId && playerName) {
+        const playerRef = ref(db, `parties/${partyId}/players/${playerName}`);
+        remove(playerRef).then(() => {
+          localStorage.removeItem("partyId");
+          localStorage.removeItem("playerName");
+          window.location.href = "index.html";
+        });
+      }
+    }
+  </script>
+</body>
+</html>
