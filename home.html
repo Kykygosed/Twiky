@@ -74,14 +74,6 @@
     }
     .post .actions button {
       margin-right: 10px;
-      padding: 0.3em 0.6em;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      background-color: #e1e8ed;
-    }
-    .post .actions button:hover {
-      background-color: #d5dadd;
     }
     .comment-section {
       margin-top: 0.5em;
@@ -144,329 +136,187 @@
       border-bottom: 1px solid #eee;
       padding-bottom: 0.5em;
     }
-    .status-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-left: 5px;
-    }
-    .online { background: green; }
-    .offline { background: red; }
   </style>
 </head>
 <body>
-<div class="topbar">
-  <div id="user-info">
-    <span id="username-display">Utilisateur</span>
-    <span class="status-dot offline" id="status-dot"></span>
-    <button onclick="logout()">Se déconnecter</button>
-  </div>
-  <div class="search-bar">
-    <input type="text" placeholder="Rechercher un post ou un utilisateur...">
-  </div>
-  <div>
-    <button onclick="toggleNotifications()">
-      🔔 <span id="notif-count" style="background:red;color:white;border-radius:50%;padding:0 5px;">0</span>
-    </button>
-  </div>
-</div>
-
-<div id="notif-popup">
-  <ul id="notif-list"></ul>
-</div>
-
-<div class="main">
-  <div class="feed">
-    <div class="new-post">
-      <textarea id="postContent" placeholder="Exprime-toi..."></textarea>
-      <div id="retweet-preview" style="margin: 0.5em 0;"></div>
-      <button onclick="createPost()">📨 Publier</button>
+  <div class="topbar">
+    <div id="username-display">@pseudo</div>
+    <div class="search-bar">
+      <input type="text" placeholder="Rechercher...">
     </div>
-    <div id="posts-list"></div>
+    <div>
+      <button onclick="logout()">Déconnexion</button>
+      <button id="notif-btn" onclick="toggleNotifications()">🔔 <span id="notif-count">0</span></button>
+    </div>
   </div>
 
-  <div class="sidebar">
-    <div class="box">
-      <h3>Top 5 Posts ❤️</h3>
-      <ul id="top-posts"></ul>
+  <div id="notif-popup"><ul id="notif-list"></ul></div>
+
+  <div class="main">
+    <div class="feed">
+      <div class="new-post">
+        <textarea id="post-content" placeholder="Quoi de neuf ?"></textarea>
+        <button onclick="sendPost()">✉️ Envoyer</button>
+      </div>
+      <div id="posts-list"></div>
     </div>
-    <div class="box">
-      <h3>Top 5 Posteurs 🧠</h3>
-      <ul id="top-users"></ul>
-    </div>
-    <div class="box">
-      <h3>Chat des connectés 💬</h3>
-      <div class="chatbox" id="chatbox"></div>
-      <div class="chat-input">
-        <input type="text" id="chatMessage" placeholder="Écris un message...">
-        <button onclick="sendChat()">Envoyer</button>
+
+    <div class="sidebar">
+      <div class="box">
+        <h3>🔥 Top 5 Posts</h3>
+        <ul id="top-posts"></ul>
+      </div>
+      <div class="box">
+        <h3>💬 Top 5 Posteurs</h3>
+        <ul id="top-users"></ul>
+      </div>
+      <div class="box">
+        <h3>💬 Chat en direct</h3>
+        <div class="chatbox" id="chat-box"></div>
+        <div class="chat-input">
+          <input type="text" id="chat-msg" placeholder="Message...">
+          <button onclick="sendChat()">Envoyer</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-<script type="module">
-  // Import Firebase modules
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-  import { getDatabase, ref, set, push, onChildAdded, update, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCItTa7T4vROhWFHfrbNnVD8RoCBuZKaXM",
+      authDomain: "twiky-2e73a.firebaseapp.com",
+      databaseURL: "https://twiky-2e73a-default-rtdb.firebaseio.com",
+      projectId: "twiky-2e73a",
+      storageBucket: "twiky-2e73a.firebasestorage.app",
+      messagingSenderId: "850733637403",
+      appId: "1:850733637403:web:0b8b4ffea9878765643dbe",
+      measurementId: "G-XQYWKVJZXF"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCItTa7T4vROhWFHfrbNnVD8RoCBuZKaXM",
-    authDomain: "twiky-2e73a.firebaseapp.com",
-    databaseURL: "https://twiky-2e73a-default-rtdb.firebaseio.com",
-    projectId: "twiky-2e73a",
-    storageBucket: "twiky-2e73a.firebasestorage.app",
-    messagingSenderId: "850733637403",
-    appId: "1:850733637403:web:0b8b4ffea9878765643dbe",
-    measurementId: "G-XQYWKVJZXF"
-  };
+    const uid = localStorage.getItem('uid');
+    if (!uid) window.location.href = 'index.html';
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const auth = getAuth();
+    let currentUser = "Utilisateur";
+    firebase.database().ref('users/' + uid).once('value').then(snapshot => {
+      const userData = snapshot.val();
+      currentUser = userData?.username || 'Utilisateur';
+      document.getElementById('username-display').textContent = '@' + currentUser;
+      firebase.database().ref('users/' + uid + '/lastSeen').set(new Date().toISOString());
+    });
 
-  let currentUser = null;
-  let unreadPosts = [];
-
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      currentUser = user;
-      document.getElementById("username-display").innerText = user.displayName || user.email;
-      updatePresence(user.uid, true);
-      setupListeners();
-    } else {
-      window.location.href = "index.html";
+    function logout() {
+      firebase.database().ref('users/' + uid).update({ online: false });
+      auth.signOut().then(() => {
+        localStorage.removeItem('uid');
+        window.location.href = 'index.html';
+      });
     }
-  });
 
-  window.logout = () => {
-    if (currentUser) updatePresence(currentUser.uid, false);
-    signOut(auth);
-  };
+    function sendPost() {
+      const content = document.getElementById('post-content').value.trim();
+      if (!content) return;
+      const postData = {
+        author: currentUser,
+        content: content,
+        date: new Date().toISOString(),
+        likes: 0,
+        dislikes: 0,
+        comments: {},
+        seenBy: { [uid]: true }
+      };
+      const newPostRef = db.ref('posts').push();
+      newPostRef.set(postData);
+      document.getElementById('post-content').value = '';
+    }
 
-  function updatePresence(uid, online) {
-    const userRef = ref(db, 'presence/' + uid);
-    set(userRef, { online, lastSeen: Date.now() });
-  }
+    function displayPost(key, data) {
+      const div = document.createElement('div');
+      div.className = 'post';
+      div.innerHTML = `
+        <div class="meta"><span>@${data.author}</span><span>${new Date(data.date).toLocaleString()}</span></div>
+        <div class="content">${data.content}</div>
+        <div class="actions">
+          <button onclick="likePost('${key}')">❤️ ${data.likes || 0}</button>
+          <button onclick="dislikePost('${key}')">👎 ${data.dislikes || 0}</button>
+        </div>
+        <div class="comment-section">
+          <input placeholder="Ajouter un commentaire..." id="comment-${key}" />
+          <button onclick="sendComment('${key}')">💬</button>
+          <div id="comments-${key}"></div>
+        </div>
+      `;
+      document.getElementById('posts-list').prepend(div);
+      if (!data.seenBy || !data.seenBy[uid]) {
+        addNotification(key, data);
+        db.ref('posts/' + key + '/seenBy/' + uid).set(true);
+      }
+      if (data.comments) {
+        for (const commentKey in data.comments) {
+          const comment = data.comments[commentKey];
+          const c = document.createElement('div');
+          c.textContent = `@${comment.user}: ${comment.text}`;
+          document.getElementById(`comments-${key}`).appendChild(c);
+        }
+      }
+    }
 
-  function setupListeners() {
-    listenPosts();
-    listenChat();
-    listenPresence();
-    listenTopStats();
-  }
+    function likePost(postId) {
+      const ref = db.ref('posts/' + postId + '/likes');
+      ref.transaction(val => (val || 0) + 1);
+    }
 
-  function createPost() {
-    const content = document.getElementById("postContent").value.trim();
-    if (!content) return;
-    const postsRef = ref(db, "posts");
-    const newPostRef = push(postsRef);
-    set(newPostRef, {
-      author: currentUser.displayName || currentUser.email,
-      uid: currentUser.uid,
-      content,
-      timestamp: Date.now(),
-      likes: {},
-      dislikes: {},
-      comments: {},
-      retweetOf: retweetTargetId || null
+    function dislikePost(postId) {
+      const ref = db.ref('posts/' + postId + '/dislikes');
+      ref.transaction(val => (val || 0) + 1);
+    }
+
+    function sendComment(postId) {
+      const input = document.getElementById(`comment-${postId}`);
+      const comment = input.value.trim();
+      if (!comment) return;
+      db.ref('posts/' + postId + '/comments').push({ user: currentUser, text: comment });
+      input.value = '';
+    }
+
+    db.ref('posts').on('child_added', snapshot => {
+      displayPost(snapshot.key, snapshot.val());
     });
-    document.getElementById("postContent").value = "";
-    document.getElementById("retweet-preview").innerHTML = "";
-    retweetTargetId = null;
-  }
 
-  let retweetTargetId = null;
-
-  function listenPosts() {
-    const postsRef = ref(db, "posts");
-    onChildAdded(postsRef, (snapshot) => {
+    db.ref('chat').on('child_added', snapshot => {
       const data = snapshot.val();
-      const key = snapshot.key;
-      unreadPosts.push({ key, data });
-      renderNotificationCount();
-      renderPost(data, key);
+      const msgDiv = document.createElement('div');
+      msgDiv.textContent = `[${new Date(data.date).toLocaleTimeString()}] @${data.user}: ${data.message}`;
+      document.getElementById('chat-box').appendChild(msgDiv);
+      document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
     });
-  }
 
-  function renderPost(data, key) {
-    const postContainer = document.getElementById("posts-list");
-    const postDiv = document.createElement("div");
-    postDiv.className = "post";
-    postDiv.id = `post-${key}`;
+    function sendChat() {
+      const msg = document.getElementById('chat-msg').value.trim();
+      if (!msg) return;
+      db.ref('chat').push({ user: currentUser, message: msg, date: new Date().toISOString() });
+      document.getElementById('chat-msg').value = '';
+    }
 
-    const isLiked = data.likes && data.likes[currentUser.uid];
-    const isDisliked = data.dislikes && data.dislikes[currentUser.uid];
-    const likeCount = data.likes ? Object.keys(data.likes).length : 0;
-    const dislikeCount = data.dislikes ? Object.keys(data.dislikes).length : 0;
+    function toggleNotifications() {
+      const box = document.getElementById('notif-popup');
+      box.style.display = box.style.display === 'block' ? 'none' : 'block';
+      document.getElementById('notif-count').textContent = '0';
+    }
 
-    const onlineStatus = onlineUsers[data.uid] ? "online" : "offline";
-
-    postDiv.innerHTML = `
-      <div class="meta">
-        <span>${data.author} <span class="status-dot ${onlineStatus}"></span></span>
-        <span>${new Date(data.timestamp).toLocaleString()}</span>
-      </div>
-      <div>${data.content}</div>
-      ${data.retweetOf ? `<div class="retweet-preview">↩️ Retweet d'un post <button onclick="gotoOriginal('${data.retweetOf}')">Voir</button></div>` : ""}
-      <div class="actions">
-        <button onclick="likePost('${key}')" ${isLiked ? "disabled" : ""}>❤️ ${likeCount}</button>
-        <button onclick="dislikePost('${key}')" ${isDisliked ? "disabled" : ""}>👎 ${dislikeCount}</button>
-        <button onclick="retweet('${key}', \`${data.content.replace(/`/g, "\\`")}\`)">↩️ Retweeter</button>
-      </div>
-      <div class="comment-section">
-        <input type="text" placeholder="Commenter..." onkeypress="if(event.key==='Enter')commentPost('${key}', this)">
-        <div id="comments-${key}"></div>
-      </div>
-    `;
-    postContainer.prepend(postDiv);
-    renderComments(data.comments, key);
-  }
-
-  function likePost(postId) {
-    const likeRef = ref(db, `posts/${postId}/likes/${currentUser.uid}`);
-    set(likeRef, true);
-    const dislikeRef = ref(db, `posts/${postId}/dislikes/${currentUser.uid}`);
-    set(dislikeRef, null);
-  }
-
-  function dislikePost(postId) {
-    const dislikeRef = ref(db, `posts/${postId}/dislikes/${currentUser.uid}`);
-    set(dislikeRef, true);
-    const likeRef = ref(db, `posts/${postId}/likes/${currentUser.uid}`);
-    set(likeRef, null);
-  }
-
-  function commentPost(postId, input) {
-    const comment = input.value.trim();
-    if (!comment) return;
-    const commentRef = push(ref(db, `posts/${postId}/comments`));
-    set(commentRef, {
-      author: currentUser.displayName || currentUser.email,
-      content: comment,
-      timestamp: Date.now()
-    });
-    input.value = "";
-  }
-
-  function renderComments(comments, postId) {
-    const container = document.getElementById(`comments-${postId}`);
-    container.innerHTML = "";
-    if (!comments) return;
-    Object.values(comments).forEach(c => {
-      const div = document.createElement("div");
-      div.innerText = `${c.author}: ${c.content}`;
-      container.appendChild(div);
-    });
-  }
-
-  function retweet(postId, content) {
-    retweetTargetId = postId;
-    document.getElementById("retweet-preview").innerHTML = `<div style="border-left:3px solid #1da1f2;padding-left:5px;">↩️ ${content}</div>`;
-  }
-
-  function gotoOriginal(postId) {
-    const el = document.getElementById(`post-${postId}`);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  }
-
-  function toggleNotifications() {
-    const box = document.getElementById("notif-popup");
-    box.style.display = box.style.display === "block" ? "none" : "block";
-    const list = document.getElementById("notif-list");
-    list.innerHTML = "";
-    unreadPosts.forEach(({ key, data }) => {
-      const li = document.createElement("li");
-      li.innerText = `${data.author}: ${data.content}`;
-      li.onclick = () => gotoOriginal(key);
-      list.appendChild(li);
-    });
-    unreadPosts = [];
-    renderNotificationCount();
-  }
-
-  function renderNotificationCount() {
-    document.getElementById("notif-count").innerText = unreadPosts.length;
-  }
-
-  function listenChat() {
-    const chatRef = ref(db, "chat");
-    onChildAdded(chatRef, snap => {
-      const msg = snap.val();
-      const div = document.createElement("div");
-      const status = onlineUsers[msg.uid] ? "online" : "offline";
-      div.innerHTML = `<b>${msg.author}</b> <span class="status-dot ${status}"></span>: ${msg.content}`;
-      document.getElementById("chatbox").appendChild(div);
-    });
-  }
-
-  function sendChat() {
-    const msg = document.getElementById("chatMessage").value.trim();
-    if (!msg) return;
-    const msgRef = push(ref(db, "chat"));
-    set(msgRef, {
-      author: currentUser.displayName || currentUser.email,
-      uid: currentUser.uid,
-      content: msg,
-      timestamp: Date.now()
-    });
-    document.getElementById("chatMessage").value = "";
-  }
-
-  let onlineUsers = {};
-
-  function listenPresence() {
-    const presenceRef = ref(db, "presence");
-    onValue(presenceRef, (snapshot) => {
-      onlineUsers = {};
-      snapshot.forEach(child => {
-        const data = child.val();
-        if (data.online) onlineUsers[child.key] = true;
-      });
-      refreshOnlineStatus();
-    });
-  }
-
-  function refreshOnlineStatus() {
-    document.querySelectorAll(".status-dot").forEach(dot => {
-      dot.classList.remove("online", "offline");
-      const uid = dot.dataset.uid;
-      dot.classList.add(onlineUsers[uid] ? "online" : "offline");
-    });
-  }
-
-  function listenTopStats() {
-    const postsRef = ref(db, "posts");
-    onValue(postsRef, (snapshot) => {
-      const posts = [];
-      const userCounts = {};
-      snapshot.forEach(child => {
-        const data = child.val();
-        data.key = child.key;
-        posts.push(data);
-        if (!userCounts[data.author]) userCounts[data.author] = 0;
-        userCounts[data.author]++;
-      });
-
-      const topPosts = posts.sort((a, b) => {
-        const aLikes = a.likes ? Object.keys(a.likes).length : 0;
-        const bLikes = b.likes ? Object.keys(b.likes).length : 0;
-        return bLikes - aLikes;
-      }).slice(0, 5);
-
-      document.getElementById("top-posts").innerHTML = topPosts.map(p => `<li>${p.author}: ${p.content.slice(0, 30)}...</li>`).join("");
-
-      const topUsers = Object.entries(userCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, count]) => `<li>${name} (${count})</li>`);
-
-      document.getElementById("top-users").innerHTML = topUsers.join("");
-    });
-  }
-</script>
+    function addNotification(key, data) {
+      const notifList = document.getElementById('notif-list');
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>@${data.author}</strong>: ${data.content.substring(0, 50)}...`;
+      notifList.prepend(li);
+      const count = document.getElementById('notif-count');
+      count.textContent = parseInt(count.textContent) + 1;
+    }
+  </script>
+</body>
+</html>
